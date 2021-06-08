@@ -13,8 +13,8 @@
    Tokenomics :
    -----------------------
    5% Total Tax 
-   - 2.5% Auto distributed to all WUKONG INU (WONG) holders
-   - 2.5% Burnt Automatically
+   - 2.5% auto distributed to all WUKONG INU (WONG) holders
+   - 2.5% Burnt automatically
    
    
    Official Social Platforms : 
