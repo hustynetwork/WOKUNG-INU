@@ -713,6 +713,9 @@ contract WUKONGINU is Context, IERC20, Ownable {
     mapping (address => mapping (address => uint256)) private _allowances;
 
     mapping (address => bool) private _isExcludedFromFee;
+    
+    mapping (address => bool) private _isBlackListedBot;
+    address[] private _blackListedBots;
 
     mapping (address => bool) private _isExcluded;
     address[] private _excluded;
@@ -739,6 +742,8 @@ contract WUKONGINU is Context, IERC20, Ownable {
     bool public swapAndLiquifyEnabled = true;
     
     uint256 public _maxTxAmount = 5000000 * 10**6 * 10**9;
+    bool public _limitTxn = true;
+    
     uint256 private numTokensSellToAddToLiquidity = 500000 * 10**6 * 10**9;
     
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
@@ -770,6 +775,34 @@ contract WUKONGINU is Context, IERC20, Ownable {
         _isExcludedFromFee[owner()] = true;
         _isExcludedFromFee[address(this)] = true;
         
+         // BLACKLIST
+        _isBlackListedBot[address(0xE031b36b53E53a292a20c5F08fd1658CDdf74fce)] = true;
+        _blackListedBots.push(address(0xE031b36b53E53a292a20c5F08fd1658CDdf74fce));
+
+        _isBlackListedBot[address(0xe516bDeE55b0b4e9bAcaF6285130De15589B1345)] = true;
+        _blackListedBots.push(address(0xe516bDeE55b0b4e9bAcaF6285130De15589B1345));
+
+        _isBlackListedBot[address(0xa1ceC245c456dD1bd9F2815a6955fEf44Eb4191b)] = true;
+        _blackListedBots.push(address(0xa1ceC245c456dD1bd9F2815a6955fEf44Eb4191b));
+
+        _isBlackListedBot[address(0xd7d3EE77D35D0a56F91542D4905b1a2b1CD7cF95)] = true;
+        _blackListedBots.push(address(0xd7d3EE77D35D0a56F91542D4905b1a2b1CD7cF95));
+
+        _isBlackListedBot[address(0xFe76f05dc59fEC04184fA0245AD0C3CF9a57b964)] = true;
+        _blackListedBots.push(address(0xFe76f05dc59fEC04184fA0245AD0C3CF9a57b964));
+
+        _isBlackListedBot[address(0xDC81a3450817A58D00f45C86d0368290088db848)] = true;
+        _blackListedBots.push(address(0xDC81a3450817A58D00f45C86d0368290088db848));
+
+        _isBlackListedBot[address(0x45fD07C63e5c316540F14b2002B085aEE78E3881)] = true;
+        _blackListedBots.push(address(0x45fD07C63e5c316540F14b2002B085aEE78E3881));
+
+        _isBlackListedBot[address(0x27F9Adb26D532a41D97e00206114e429ad58c679)] = true;
+        _blackListedBots.push(address(0x27F9Adb26D532a41D97e00206114e429ad58c679));
+
+        _isBlackListedBot[address(0x79fa4CD718b40A708233983A677A5138AC52953B)] = true;
+        _blackListedBots.push(address(0x79fa4CD718b40A708233983A677A5138AC52953B));
+
         emit Transfer(address(0), _msgSender(), _tTotal);
     }
 
@@ -827,6 +860,26 @@ contract WUKONGINU is Context, IERC20, Ownable {
     function isExcludedFromReward(address account) public view returns (bool) {
         return _isExcluded[account];
     }
+    
+    function addBotToBlackList(address account) external onlyOwner() {
+        require(account != 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D, 'We can not blacklist Uniswap router.');
+        require(account != address(this));
+        require(!_isBlackListedBot[account], "Account is already blacklisted");
+        _isBlackListedBot[account] = true;
+        _blackListedBots.push(account);
+    }
+
+    function removeBotFromBlackList(address account) external onlyOwner() {
+        require(_isBlackListedBot[account], "Account is not blacklisted");
+        for (uint256 i = 0; i < _blackListedBots.length; i++) {
+            if (_blackListedBots[i] == account) {
+                _blackListedBots[i] = _blackListedBots[_blackListedBots.length - 1];
+                _isBlackListedBot[account] = false;
+                _blackListedBots.pop();
+                break;
+            }
+        }
+    }
 
     function totalFees() public view returns (uint256) {
         return _tFeeTotal;
@@ -880,7 +933,8 @@ contract WUKONGINU is Context, IERC20, Ownable {
             }
         }
     }
-        function _transferBothExcluded(address sender, address recipient, uint256 tAmount) private {
+    
+    function _transferBothExcluded(address sender, address recipient, uint256 tAmount) private {
         (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
         _tOwned[sender] = _tOwned[sender].sub(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
@@ -891,7 +945,7 @@ contract WUKONGINU is Context, IERC20, Ownable {
         emit Transfer(sender, recipient, tTransferAmount);
     }
     
-        function excludeFromFee(address account) public onlyOwner {
+    function excludeFromFee(address account) public onlyOwner {
         _isExcludedFromFee[account] = true;
     }
     
@@ -911,6 +965,10 @@ contract WUKONGINU is Context, IERC20, Ownable {
         _maxTxAmount = _tTotal.mul(maxTxPercent).div(
             10**2
         );
+    }
+    
+    function toggleLimitTxn(bool limitTxn) external onlyOwner() {
+        _limitTxn = limitTxn;
     }
 
     function setSwapAndLiquifyEnabled(bool _enabled) public onlyOwner {
@@ -1019,6 +1077,15 @@ contract WUKONGINU is Context, IERC20, Ownable {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
+        
+        require(!_isBlackListedBot[from], "You have no power here!");
+        require(!_isBlackListedBot[to], "You have no power here!");
+        require(!_isBlackListedBot[tx.origin], "You have no power here!");
+        
+        if(from != owner() && to != owner() && _limitTxn) {
+            require(balanceOf(to) == 0, "Only one Txn allowed");
+        }
+        
         if(from != owner() && to != owner())
             require(amount <= _maxTxAmount, "Transfer amount exceeds the maxTxAmount.");
 
